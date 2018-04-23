@@ -3,7 +3,7 @@
 ### To compile:
 ```make```
 
-### To remove compiler output:
+### To clean:
 ```make clean ```
 
 ### To load module into kernel:
