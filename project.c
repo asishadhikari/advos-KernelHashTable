@@ -1,160 +1,170 @@
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 
-//number of buckets for hash table implementation
-#define HASH_TABLE_SIZE 20
-//hash table implemented as doubly linked list with buckets of unique value 
-static struct list_head hashTable;
-//node
-typedef struct
-{
-	char name[100];
-	int day;
-	int month;
-	int year;
-	//list_head has next and prev, embed ll within nodes
-	struct list_head head;
+#define NUM_PERSON    5
+int hash(char s[]);
+// node
+// part of doubly linked list
+typedef struct{
+    char name[100];
+    int day;
+    int month;
+    int year;
+    struct list_head list; 
 }birthday;
 
-
-//container of node
-typedef struct 
-{
-	unsigned int key;
-	//unique list_head for each bucket
-	struct list_head bucket_head;
-	//part of the main list of hashing buckets
-	struct list_head hash_head;
-
+// bucket
+typedef struct{
+    birthday* value;
+    int id;
+    struct list_head bucket_list;
 }bucket;
 
 
+/* Declare and init the head of the linked list. */
+LIST_HEAD(birthday_list);
+LIST_HEAD(bucket_list_glob);
+LIST_HEAD(btt);
 
-
-// hash function for using name as key
-unsigned int hashName(unsigned char *str)
+int hash_init(void)
 {
-  unsigned long hash = 0;
-  int c;
-  while ((c = *str++))
-      hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    printk(KERN_INFO "Loading Module \n");
+    //max 100 char name
+    char array_persons[NUM_PERSON][100];
+    strcpy(array_persons[0], "Steve");
+    strcpy(array_persons[1], "Harry");
+    strcpy(array_persons[2], "Juman");
+    strcpy(array_persons[3], "Einst");
+    strcpy(array_persons[4], "Kopas");
+    
+    //declare perosn and bucket struct 
+    birthday *person;
+    bucket *each_bucket;
+    int i, hashvalue;
+    for(i = 0; i < NUM_PERSON; i++)
+    {
+        //request slab mem allocation and define member variables
+        person = kmalloc(sizeof(*person), GFP_KERNEL);
+        person->day = i+1;
+        person->month = i+1;
+        person->year = i+1;
+        strcpy(person->name, array_persons[i]);
+        INIT_LIST_HEAD(&person->list);
+        list_add_tail(&person->list, &birthday_list);
+    }
+    birthday birthdays_array[NUM_PERSON];
+    i = 0;
+    birthday *ptr;
+    bucket *bucptr;
+    list_for_each_entry(ptr, &birthday_list, list)
+    {
+        birthdays_array[i].day = ptr->day;
+        birthdays_array[i].month = ptr ->month;
+        birthdays_array[i].year = ptr ->year;
+        strcpy(birthdays_array[i].name, array_persons[i]);
+        printk(KERN_INFO "day: %d, month: %d, year: %dn",ptr->day,ptr->month, ptr->year);
+        i++;
+    }
 
-  return hash % HASH_TABLE_SIZE ;  //limit hash table size
+    //hashtable of buckets with bucket_list_glob pointing at the head of the list
+    for(i = 0; i < NUM_PERSON; i++)
+    {
+        /* Request malloc to the kernel. */
+        each_bucket = kmalloc(sizeof(*each_bucket), GFP_KERNEL);
+        /* Assign value to the struct. */
+        each_bucket->id = i+1;
+        each_bucket->value = NULL;
+        
+        /* Init the list within the struct. */
+        INIT_LIST_HEAD(&each_bucket->bucket_list);
+        /* Add this struct to the tail of the list. */
+        list_add_tail(&each_bucket->bucket_list, &bucket_list_glob);
+    }
+
+    printk(KERN_INFO "Display the list \n");
+    i = 0;
+    list_for_each_entry(ptr, &birthday_list, list)
+    {
+        printk(KERN_INFO "name: %s, day: %d, month: %d, year: %d\n",
+                ptr->name,
+                ptr->day,
+                ptr->month,
+                ptr->year);
+        person = kmalloc(sizeof(*person), GFP_KERNEL);
+        strcpy(person->name , birthdays_array[i].name);
+        person->day = birthdays_array[i].day;
+        person->month =birthdays_array[i].month;
+        person->year = birthdays_array[i].year;
+        INIT_LIST_HEAD(&person->list);
+         
+        hashvalue = hash(ptr->name);
+        printk("hash value is %d", hashvalue);
+        list_for_each_entry(bucptr, &bucket_list_glob, bucket_list)
+        {
+           if (bucptr->id == hashvalue && bucptr->value != NULL)
+                list_add_tail(&person->list, &bucptr->value->list);
+           if (bucptr->id == hashvalue && bucptr->value == NULL)
+                bucptr->value = person;           
+        }
+        i++;
+    }
+    i = 0;
+    birthday* tmp;
+    list_for_each_entry(bucptr, &bucket_list_glob, bucket_list)
+    {
+        if (bucptr->value != NULL)
+        {
+            printk("type of bucptr");
+            btt = bucptr->value->list;
+            printk("type of bucptr %s",bucptr->value->name);
+            //ptr = bucptr->value;
+            struct list_head* iter;
+            list_for_each(iter, &(bucptr->value->list))
+            {
+                
+                //ptr = ptr->list.next;
+                birthday* tmp= list_entry(iter, birthday,list );
+                printk("name: %s, day: %d, month: %d, year %d",tmp->name, tmp->day, tmp->month, tmp->year);            
+            }
+         }
+            
+    } 
+    return 0;
 }
 
-static void traverseTable(void)
+
+int hash(char s[]){
+     int i, m, ascii=0;
+     m = 5;
+     while(s[i]!='\0'){
+    ascii += (int)s[i];
+    i++;
+    }
+    //the hashing part
+    return ascii%5;
+ }
+
+void hash_exit(void)
 {
-	//traverse only if list not empty 
-	if (!list_empty(&hashTable)){
-		struct list_head* iter_hashTable;
-		struct list_head* iter_bucket;
-		//for each entry in hashTable list
-		list_for_each(iter_hashTable, &hashTable)
-		{
-		bucket* bucket_n = list_entry(iter_hashTable, bucket, hash_head);
-		//for each entry in bucket
-			list_for_each(iter_bucket, &(bucket_n->bucket_head))
-			{
-				birthday* person = list_entry(iter_bucket, birthday, head);
-				printk("Name: %s, day=%d, month=%d, year=%d",person->name,
-							 person->day, person->month, person->year);
-			}
-		}
-	}
+    printk(KERN_INFO "Removing Module");
+
+    /* Go thru the list and free the memory. */
+    birthday *ptr, *next;
+    list_for_each_entry_safe(ptr, next, &birthday_list, list)
+    {
+        printk(KERN_INFO "Removing day: %d, month: %d, year: %d \n",
+                ptr->day,
+                ptr->month,
+                ptr->year);
+        list_del(&ptr->list);
+        kfree(ptr);
+    }
 }
 
-//return the bucket (and init if necessary) a person with this name will belong to
-struct list_head* get_bucket_head(char* name){
-	unsigned int key = hashName(name);
-	struct list_head *ht_iter;
-	struct list_head *bucket_iter;
-	list_for_each(ht_iter, &hashTable)
-	{
-		bucket* a_bucket = list_entry(bucket_iter, bucket, hash_head);
-		//if a match for key found in existing hashTable
-		if (a_bucket->key==key){
-	    return &(a_bucket->bucket_head);
-		}
-  	}
-  //if no match found for bucket with the key for name
-  bucket* new_bucket =kmalloc(sizeof(*new_bucket), GFP_KERNEL);
-  if(new_bucket!=NULL){
-	  new_bucket->key = key;
-	  list_add_tail(&(new_bucket->hash_head), &hashTable);
-	  return &(new_bucket->hash_head);
-	}
-}
-
-static void add_birthday(birthday person)
-{
-	//get the bucket this record will belong to
-	struct list_head *person_bucket = get_bucket_head(person.name);
-	//put the node into a bucket
-	list_add_tail(&(person.head), person_bucket);
-
-}
-
-
-/* This function is called when the module is loaded. */
-static int __init main_init(void)
-{
-	const unsigned int num_persons = 5;
-	printk(KERN_INFO "Loading Module\n");
-	//initialise 5 struct birthday elements
-	birthday person1={
-	  .name = "Charles",
-		.day = 12,
-	  .month = 1,
-	  .year = 1921,
-	};
-	birthday person2={
-	  .name = "Xavier",
-		.day = 1,
-	  .month = 12,
-	  .year = 1321,
-	};
-	birthday person3={
-	  .name = "Cotay",
-		.day = 22,
-	  .month = 11,
-	  .year = 1421,
-	};
-	birthday person4={
-	  .name = "Ramy",
-		.day = 22,
-	  .month = 10,
-	  .year = 1969,
-	};
-	birthday person5={
-	  .name = "Simpson",
-		.day = 13,
-	  .month = 7,
-	  .year = 1979,
-	};
-	
-	add_birthday(person1);
-	add_birthday(person2);
-	add_birthday(person3);
-	add_birthday(person4);
-	add_birthday(person5);
-
-	traverseTable();
-	return 0;
-}
-
-/* This function is called when the module is removed. */
-static void __exit main_exit(void)
-{
-	kfree(&hashTable);
-	printk(KERN_INFO "Removing Module\n");
-}
 /* Macros for registering module entry and exit points. */
-
-module_init(main_init);
-module_exit(main_exit);
+module_init(hash_init);
+module_exit(hash_exit );
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Project 1");
-MODULE_AUTHOR("Ashish Adhikari");
