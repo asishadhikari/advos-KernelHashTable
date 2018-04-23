@@ -9,7 +9,7 @@
 //hash table implemented as doubly linked list with buckets of unique value 
 static struct list_head hashTable;
 //node
-struct birthday
+typedef struct
 {
 	char name[100];
 	int day;
@@ -17,11 +17,11 @@ struct birthday
 	int year;
 	//list_head has next and prev, embed ll within nodes
 	struct list_head head;
-};
+}birthday;
 
 
 //container of node
-struct bucket
+typedef struct 
 {
 	unsigned int key;
 	//unique list_head for each bucket
@@ -29,7 +29,7 @@ struct bucket
 	//part of the main list of hashing buckets
 	struct list_head hash_head;
 
-};
+}bucket;
 
 
 
@@ -54,11 +54,11 @@ static void traverseTable(void)
 		//for each entry in hashTable list
 		list_for_each(iter_hashTable, &hashTable)
 		{
-		struct bucket* bucket_n = list_entry(iter_hashTable, struct bucket, hash_head);
+		bucket* bucket_n = list_entry(iter_hashTable, bucket, hash_head);
 		//for each entry in bucket
 			list_for_each(iter_bucket, &(bucket_n->bucket_head))
 			{
-				struct birthday* person = list_entry(iter_bucket, struct birthday, head);
+				birthday* person = list_entry(iter_bucket, birthday, head);
 				printk("Name: %s, day=%d, month=%d, year=%d",person->name,
 							 person->day, person->month, person->year);
 			}
@@ -73,15 +73,14 @@ struct list_head* get_bucket_head(char* name){
 	struct list_head *bucket_iter;
 	list_for_each(ht_iter, &hashTable)
 	{
-		struct bucket* a_bucket = list_entry(bucket_iter, struct bucket, hash_head);
+		bucket* a_bucket = list_entry(bucket_iter, bucket, hash_head);
 		//if a match for key found in existing hashTable
 		if (a_bucket->key==key){
 	    return &(a_bucket->bucket_head);
 		}
-  }
+  	}
   //if no match found for bucket with the key for name
-  struct bucket* new_bucket;
-  new_bucket = kmalloc(sizeof(*new_bucket), GFP_KERNEL);
+  bucket* new_bucket =kmalloc(sizeof(*new_bucket), GFP_KERNEL);
   if(new_bucket!=NULL){
 	  new_bucket->key = key;
 	  list_add_tail(&(new_bucket->hash_head), &hashTable);
@@ -89,8 +88,7 @@ struct list_head* get_bucket_head(char* name){
 	}
 }
 
-
-static void add_birthday(struct birthday person)
+static void add_birthday(birthday person)
 {
 	//get the bucket this record will belong to
 	struct list_head *person_bucket = get_bucket_head(person.name);
@@ -106,31 +104,31 @@ static int __init main_init(void)
 	const unsigned int num_persons = 5;
 	printk(KERN_INFO "Loading Module\n");
 	//initialise 5 struct birthday elements
-	struct birthday person1={
+	birthday person1={
 	  .name = "Charles",
 		.day = 12,
 	  .month = 1,
 	  .year = 1921,
 	};
-	struct birthday person2={
+	birthday person2={
 	  .name = "Xavier",
 		.day = 1,
 	  .month = 12,
 	  .year = 1321,
 	};
-	struct birthday person3={
+	birthday person3={
 	  .name = "Cotay",
 		.day = 22,
 	  .month = 11,
 	  .year = 1421,
 	};
-	struct birthday person4={
+	birthday person4={
 	  .name = "Ramy",
 		.day = 22,
 	  .month = 10,
 	  .year = 1969,
 	};
-	struct birthday person5={
+	birthday person5={
 	  .name = "Simpson",
 		.day = 13,
 	  .month = 7,
