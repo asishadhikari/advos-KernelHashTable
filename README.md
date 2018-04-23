@@ -1,11 +1,9 @@
 # adv-os-project1
 
-## Project URL: https://github.com/asishadhikari/adv-os-project/tree/master/project1
-
 ### To compile:
 ```make```
 
-### To remove compiler output:
+### To clean:
 ```make clean ```
 
 ### To load module into kernel:
@@ -15,4 +13,4 @@
 ```sudo dmesg```
 
 ### To remove module from kernel:
-```sudo rmmod project1.ko```
+```sudo rmmod project.ko```
