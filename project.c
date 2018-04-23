@@ -4,7 +4,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#define NUM_PERSON    5
+#define NUM_PERSON 5
+//hash function
 int hash(char s[]);
 // node
 // part of doubly linked list
@@ -23,8 +24,7 @@ typedef struct{
     struct list_head bucket_list;
 }bucket;
 
-
-/* Declare and init the head of the linked list. */
+//initialise 
 LIST_HEAD(birthday_list);
 LIST_HEAD(bucket_list_glob);
 LIST_HEAD(btt);
@@ -48,9 +48,9 @@ int hash_init(void)
     {
         //request slab mem allocation and define member variables
         person = kmalloc(sizeof(*person), GFP_KERNEL);
-        person->day = i+1;
-        person->month = i+1;
-        person->year = i+1;
+        person->day = i+10;
+        person->month = i+2;
+        person->year = i+3;
         strcpy(person->name, array_persons[i]);
         INIT_LIST_HEAD(&person->list);
         list_add_tail(&person->list, &birthday_list);
@@ -65,10 +65,9 @@ int hash_init(void)
         birthdays_array[i].month = ptr ->month;
         birthdays_array[i].year = ptr ->year;
         strcpy(birthdays_array[i].name, array_persons[i]);
-        printk(KERN_INFO "day: %d, month: %d, year: %dn",ptr->day,ptr->month, ptr->year);
+        printk(KERN_INFO "day: %d, month: %d, year: %d",ptr->day,ptr->month, ptr->year);
         i++;
     }
-
     //hashtable of buckets with bucket_list_glob pointing at the head of the list
     for(i = 0; i < NUM_PERSON; i++)
     {
@@ -84,7 +83,6 @@ int hash_init(void)
         list_add_tail(&each_bucket->bucket_list, &bucket_list_glob);
     }
 
-    printk(KERN_INFO "Display the list \n");
     i = 0;
     list_for_each_entry(ptr, &birthday_list, list)
     {
@@ -101,7 +99,6 @@ int hash_init(void)
         INIT_LIST_HEAD(&person->list);
          
         hashvalue = hash(ptr->name);
-        printk("hash value is %d", hashvalue);
         list_for_each_entry(bucptr, &bucket_list_glob, bucket_list)
         {
            if (bucptr->id == hashvalue && bucptr->value != NULL)
@@ -117,15 +114,11 @@ int hash_init(void)
     {
         if (bucptr->value != NULL)
         {
-            printk("type of bucptr");
             btt = bucptr->value->list;
-            printk("type of bucptr %s",bucptr->value->name);
-            //ptr = bucptr->value;
             struct list_head* iter;
             list_for_each(iter, &(bucptr->value->list))
             {
                 
-                //ptr = ptr->list.next;
                 birthday* tmp= list_entry(iter, birthday,list );
                 printk("name: %s, day: %d, month: %d, year %d",tmp->name, tmp->day, tmp->month, tmp->year);            
             }
@@ -149,13 +142,11 @@ int hash(char s[]){
 
 void hash_exit(void)
 {
-    printk(KERN_INFO "Removing Module");
-
-    /* Go thru the list and free the memory. */
+    printk(KERN_INFO "Exiting Module...");
     birthday *ptr, *next;
     list_for_each_entry_safe(ptr, next, &birthday_list, list)
     {
-        printk(KERN_INFO "Removing day: %d, month: %d, year: %d \n",
+        printk(KERN_INFO "Freeing day: %d, month: %d, year: %d \n",
                 ptr->day,
                 ptr->month,
                 ptr->year);
@@ -163,8 +154,7 @@ void hash_exit(void)
         kfree(ptr);
     }
 }
-
-/* Macros for registering module entry and exit points. */
 module_init(hash_init);
 module_exit(hash_exit );
 MODULE_LICENSE("GPL");
+        
