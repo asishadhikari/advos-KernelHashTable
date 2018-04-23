@@ -13,4 +13,4 @@
 ```sudo dmesg```
 
 ### To remove module from kernel:
-```sudo rmmod project1.ko```
+```sudo rmmod project.ko```
